@@ -6,8 +6,17 @@
 #include "assets.gen.h"
 using namespace Sifteo;
 
-enum Tasks {WINDOW, TRASH, DISHWASHER, TASK_NUM};
-enum Users {BASE = TASK_NUM-1, LESLIE, CEDRIC, ID_NUM};
+// These enums are used to identify cubes:
+enum Tasks {TRASH,        // tilted => horiz = emptied
+         // WINDOW,       // vertical = closed
+         // DISHWASHER,   // checked with open time ?
+            TASK_NUM};
+enum Users {USER_BASE = TASK_NUM-1,
+            LESLIE,
+            CEDRIC,
+            ID_NUM,
+            USER_NUM = ID_NUM - USER_BASE};
+//const auto users[] = {"Leslie", "Cedric", "Other"};
 
 static Metadata M = Metadata()
     .title("siftkey")
@@ -23,7 +32,6 @@ public:
     struct Counter {
         unsigned touch;
         unsigned neighborAdd;
-        unsigned neighborRemove;
     } counters[CUBE_ALLOCATION]; // useful ?
 
     void install()
@@ -42,19 +50,26 @@ public:
 private:
     void onConnect(unsigned id)
     {
-        CubeID cube(id);
         bzero(counters[id]); // useful ?
-
         vid[id].initMode(BG0_ROM);
         vid[id].attach(id);
         motion[id].attach(id);
 
+        drawScreen(id);
+    }
+
+    void drawScreen(unsigned id)
+    {
+        CubeID cube(id);
+
         // Draw the cube's identity
         String<128> str;
-        if (id < TASK_NUM)
-          str << "    Task #" << id+1 << "\n\n";
-        else
-          str << "    User #" << id+1 - TASK_NUM << "\n\n";
+        if (id < TASK_NUM) {
+            str << "    Task #" << id << "\n\n";
+            //str << "    Task #" << id+1 << "\n\n";
+        } else
+            str << "    User #" << id << "\n\n";
+            //str << "    User #" << id+1 - TASK_NUM << "\n\n";
         vid[cube].bg0rom.text(vec(1,2), str);
 
         // Draw initial state for all sensors
@@ -65,18 +80,28 @@ private:
 
     void onTouch(unsigned id)
     {
+        /* TODO: debounce !
+        static bool alreadyRunning = false;
         CubeID cube(id);
-        counters[id].touch++;
-        LOG("Touch event on cube #%d, state=%d\n", id, cube.isTouching());
-
-        String<32> str;
-        str << "touch: " << cube.isTouching() <<
-            " (" << counters[cube].touch << ")\n";
-        vid[cube].bg0rom.text(vec(1,9), str);
+        if (cube.isTouching() && !alreadyRunning) // don't update when release
+        {
+            alreadyRunning = true;
+            LOG("+ video mode = %d\n", vid[id].mode());
+            if (vid[id].mode() != POWERDOWN_MODE)
+                vid[id].setMode(POWERDOWN_MODE);
+            else {
+                vid[id].initMode(BG0_ROM);
+                drawScreen(id);
+            }
+            LOG("- video mode = %d\n\n", vid[id].mode());
+            alreadyRunning = false;
+        }
+        //*/
     }
 
     void onAccelChange(unsigned id)
     {
+        /*
         CubeID cube(id);
         auto accel = cube.accel();
 
@@ -102,25 +127,21 @@ private:
         }
 
         vid[cube].bg0rom.text(vec(1,10), str);
+        */
     }
 
     void onNeighborRemove(unsigned firstID, unsigned firstSide, unsigned secondID, unsigned secondSide)
     {
-        LOG("Neighbor Remove: %02x:%d - %02x:%d\n", firstID, firstSide, secondID, secondSide);
-
         if (firstID < arraysize(counters)) {
-            counters[firstID].neighborRemove++;
             drawNeighbors(firstID);
         }
         if (secondID < arraysize(counters)) {
-            counters[secondID].neighborRemove++;
             drawNeighbors(secondID);
         }
     }
 
     void onNeighborAdd(unsigned firstID, unsigned firstSide, unsigned secondID, unsigned secondSide)
     {
-        LOG("Neighbor Add: %02x:%d - %02x:%d\n", firstID, firstSide, secondID, secondSide);
 
         if (firstID < arraysize(counters)) {
             counters[firstID].neighborAdd++;
@@ -130,6 +151,12 @@ private:
             counters[secondID].neighborAdd++;
             drawNeighbors(secondID);
         }
+
+        if (firstID < TASK_NUM && secondID > USER_BASE)
+            LOG("%d, %d, %d\n", secondID, firstID, counters[secondID].neighborAdd);
+
+        if (secondID < TASK_NUM && firstID > USER_BASE)
+            LOG("%d, %d, %d\n", firstID, secondID, counters[firstID].neighborAdd);
     }
 
     void drawNeighbors(CubeID cube)
@@ -137,15 +164,8 @@ private:
         Neighborhood nb(cube);
 
         String<64> str;
-        str << "nb "
-            << Hex(nb.neighborAt(TOP), 2) << " "
-            << Hex(nb.neighborAt(LEFT), 2) << " "
-            << Hex(nb.neighborAt(BOTTOM), 2) << " "
-            << Hex(nb.neighborAt(RIGHT), 2) << "\n";
-
-        str << "   +" << counters[cube].neighborAdd
-            << ", -" << counters[cube].neighborRemove
-            << "\n\n";
+        if (int(cube) > USER_BASE)
+            str << "   total:" << counters[cube].neighborAdd << "\n\n";
 
         BG0ROMDrawable &draw = vid[cube].bg0rom;
         draw.text(vec(1,6), str);

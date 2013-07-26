@@ -18,6 +18,7 @@ exec: all
 	swiss listen $(APP).elf > $(CSV_FILE)
 
 # lazy shortcuts:
+i: install
 e: exec
 r: run
 c: clean
