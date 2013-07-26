@@ -6,11 +6,14 @@
 #include "assets.gen.h"
 using namespace Sifteo;
 
+enum Tasks {WINDOW, TRASH, DISHWASHER, TASK_NUM};
+enum Users {BASE = TASK_NUM-1, LESLIE, CEDRIC, ID_NUM};
+
 static Metadata M = Metadata()
     .title("siftkey")
     .package("eu.honnet.siftkey", "0.1")
     .icon(Icon)
-    .cubeRange(0, CUBE_ALLOCATION);
+    .cubeRange(2, ID_NUM);
 
 static VideoBuffer vid[CUBE_ALLOCATION];
 static TiltShakeRecognizer motion[CUBE_ALLOCATION];
@@ -21,7 +24,7 @@ public:
         unsigned touch;
         unsigned neighborAdd;
         unsigned neighborRemove;
-    } counters[CUBE_ALLOCATION];
+    } counters[CUBE_ALLOCATION]; // useful ?
 
     void install()
     {
@@ -40,10 +43,7 @@ private:
     void onConnect(unsigned id)
     {
         CubeID cube(id);
-        uint64_t hwid = cube.hwID();
-
-        bzero(counters[id]);
-        LOG("Cube %d connected\n", id);
+        bzero(counters[id]); // useful ?
 
         vid[id].initMode(BG0_ROM);
         vid[id].attach(id);
@@ -51,8 +51,10 @@ private:
 
         // Draw the cube's identity
         String<128> str;
-        str << "I am cube #" << cube << "\n";
-        str << "hwid " << Hex(hwid >> 32) << "\n     " << Hex(hwid) << "\n\n";
+        if (id < TASK_NUM)
+          str << "    Task #" << id+1 << "\n\n";
+        else
+          str << "    User #" << id+1 - TASK_NUM << "\n\n";
         vid[cube].bg0rom.text(vec(1,2), str);
 
         // Draw initial state for all sensors
