@@ -11,7 +11,7 @@ Details
 =======
 This code allows listening to sensor events and logs them to a csv file using this instruction:
 
-  swiss listen siftkey.elf > file.csv
+  swiss listen siftkey.elf > ~/Dropbox/siftkey/log.csv
 
 The csv file is synchronised with another computer using dropbox.
 A javascript program parses it and uses d3js.org to visualise the data.

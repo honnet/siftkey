@@ -1,4 +1,5 @@
 APP = siftkey
+CSV_FILE=~/Dropbox/siftkey/log.csv
 
 include $(SDK_DIR)/Makefile.defs
 
@@ -11,3 +12,12 @@ CCFLAGS += -DCUBE_ALLOCATION=24
 ASSETS_BUILD_PROOF := yes
 
 include $(SDK_DIR)/Makefile.rules
+
+
+exec: all
+	swiss listen $(APP).elf > $(CSV_FILE)
+
+# lazy shortcuts:
+e: exec
+r: run
+c: clean
